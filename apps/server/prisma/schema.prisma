@@ -1,0 +1,92 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+}
+model User {
+  id          String       @id @default(cuid())
+  unionId     String?      @unique
+  devKey      String?      @unique
+  name        String
+  createdAt   DateTime     @default(now())
+  memberships Membership[]
+  sessions    Session[]
+}
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([expiresAt])
+}
+model Family {
+  id          String       @id @default(cuid())
+  name        String
+  createdAt   DateTime     @default(now())
+  memberships Membership[]
+  invites     Invite[]
+  categories  Category[]
+  dishes      Dish[]
+  plans       DailyPlan[]
+}
+model Membership {
+  familyId String
+  userId   String
+  role     Role   @default(MEMBER)
+  family   Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@id([familyId, userId])
+  @@index([userId])
+}
+model Invite {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  familyId  String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  family    Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+}
+model Category {
+  id       String @id @default(cuid())
+  familyId String
+  name     String
+  family   Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  dishes   Dish[]
+  @@unique([familyId, name])
+}
+model Dish {
+  id          String   @id @default(cuid())
+  familyId    String
+  categoryId  String?
+  name        String
+  image       String   @default("")
+  notes       String   @default("")
+  ingredients Json
+  steps       Json
+  available   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  family      Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  @@index([familyId, available])
+}
+model DailyPlan {
+  id        String   @id @default(cuid())
+  familyId  String
+  date      String
+  meals     Json
+  version   Int      @default(1)
+  updatedAt DateTime @updatedAt
+  updatedBy String
+  family    Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  @@unique([familyId, date])
+}
